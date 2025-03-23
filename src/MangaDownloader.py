@@ -12,6 +12,9 @@ import logging
 import os
 import json
 import sys
+import certifi
+
+
 
 
 DEFAULT_LOGGER = "defaultLogger"
@@ -64,7 +67,7 @@ def images_bin_to_pdf(image_paths, output_folder="pdf_output", output_pdf="outpu
 
 def returnImage(url, filename="downloaded_image.jpg",logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
     try:
-        response = requests.get(url, stream=True, verify = False)
+        response = requests.get(url, stream=True, verify=certifi.where())
         response.raise_for_status()  # Raise error for bad responses (4xx and 5xx)
         return response.content
     except requests.exceptions.RequestException as e:
@@ -75,7 +78,13 @@ def returnImage(url, filename="downloaded_image.jpg",logger=setup_logger(DEFAULT
 def scrapSingleChapter(pageUrl,folderName = "",logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
     logger.info(f"requesting the data for page {pageUrl}")
     try:
-        response = requests.get(pageUrl,verify = False)
+        proxy = {
+            "http": "http://127.0.0.1:8080",
+            "https": "http://127.0.0.1:8080",
+        }
+
+
+        response = requests.get(pageUrl,verify=certifi.where(),proxies=proxy)
         soup = BeautifulSoup(response.text, "html.parser")
 
         imgs = soup.find_all('img')
@@ -88,12 +97,13 @@ def scrapSingleChapter(pageUrl,folderName = "",logger=setup_logger(DEFAULT_LOGGE
             newImageName = imageBaseName + str(imageIndex) + ".jpg"
             logger.info(f"fetching {imageIndex}/{totalImgs} image of link {pageUrl}----------")
             print(f"fetching {imageIndex}/{totalImgs} image of link {pageUrl}----------")
-            res = returnImage(item["src"],newImageName,logger=logger)
-            if(res):
-                logger.info(f"image {imageIndex}/{totalImgs} image of link {pageUrl} returned")
-                imagesList.append(res)
-            else:
-                logger.info(f"image {imageIndex}/{totalImgs} image of link {pageUrl} not returned")
+            if("http" in item["src"]):
+                res = returnImage(item["src"],newImageName,logger=logger)
+                if(res):
+                    logger.info(f"image {imageIndex}/{totalImgs} image of link {pageUrl} returned")
+                    imagesList.append(res)
+                else:
+                    logger.info(f"image {imageIndex}/{totalImgs} image of link {pageUrl} not returned")
             
         return imagesList
         pass
@@ -109,28 +119,20 @@ def fetchChapterData(url,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
         if(_.isdigit()):
             nums.append(int(_))
     chapterno = 0.0
-    # print("len",len(nums))
-    # print(nums)
-    # print(len(nums) >= 2)
     if(len(nums) >= 2):
-        # print("here")
-        # print(nums[-1])
-        # print(nums[-2])
         temp = str(nums[-2]) +'.' + str(nums[-1])
-        # print("temp ",temp)
-        # print(float(temp))
-        # print("str ",str(nums[-1]) + '.' + nums[-1])
         chapterno = temp #float(str(nums[-2]) + '.' + nums[-1])
     else:
         chapterno = int(str(nums[-1]))
-    # print(chapterno)
     
     return [chapterno,chaptername]
 
 
 def fetchChaptersLink(pageUrl,startPageNo = 0,endPageNo = -1,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
     startPageNo = max(0,startPageNo)
-    response = requests.get(pageUrl,verify = False)
+    print("here -----------------")
+    response = requests.get(pageUrl,verify=certifi.where())
+    print("here -----------------")
     soup = BeautifulSoup(response.text, "html.parser")
     maxChilds = 0
     listUl = []
@@ -148,11 +150,9 @@ def fetchChaptersLink(pageUrl,startPageNo = 0,endPageNo = -1,logger=setup_logger
                 linktag = child.find('a')
                 chapterLink = linktag['href']
                 [chapterNo,chapterName] = fetchChapterData(url = chapterLink,logger = logger) 
-                # print(chapterNo," ",chapterName)
                 if((float(startPageNo) <= float(chapterNo)) 
                    and ((float(chapterNo) <= (float(endPageNo) + 1.0)) or (endPageNo == -1))):
-                    links.append([chapterLink,chapterName])
-                    # print("chap no ",chapterNo," ",startPageNo," ",endPageNo)
+                    links.append([chapterLink,str(chapterNo)])
                     logger.info(f"selected chapter with chapter name {chapterName} and chapterNo {float(chapterNo)}")
         except:
             pass
@@ -163,12 +163,10 @@ def fetchChaptersLink(pageUrl,startPageNo = 0,endPageNo = -1,logger=setup_logger
 
 
 def scrapChapters(_startIndex,_endIndex,chapterslink,folderName=""):
-    # print("start ",start," end ",end)
     thName = threading.current_thread().name
     logFileBaseFolder = os.path.join("Logs",folderName)
     os.makedirs(logFileBaseFolder, exist_ok=True)
     log_file = os.path.join(logFileBaseFolder, f"thread_{thName}.log")
-    # log_file = os.path.join("Logs",log_file)
     logger = setup_logger(f"Thread-{thName}", log_file)
     logger.info(f"Downloading links from {_startIndex} to {_endIndex}")
     try:
@@ -176,7 +174,8 @@ def scrapChapters(_startIndex,_endIndex,chapterslink,folderName=""):
             if(index >= len(chapterslink)):
                 break
             # pdfName = "Chapter-"+str(chapter)+".pdf"
-            pdfName = "Chapter" + str(chapterslink[index][0]) + ".pdf"
+            pdfName = "Chapter" + str(chapterslink[index][1]) + ".pdf"
+            # print(pdfName)
             logger.info(f"creating {pdfName} in thread {thName}..........................")
             print(f"creating {pdfName} in thread {thName}..........................")
             imageList = scrapSingleChapter(chapterslink[index][0],logger=logger)
@@ -221,7 +220,7 @@ def countChapters(url):
 
     
 # # Read JSON file and convert it to a dictionary
-with open("docs\mangaLinks1.json", "r") as file:
+with open("..\docs\mangaLinks1.json", "r") as file:
     data = json.load(file)  # Convert JSON to dict
 
 # # Print dictionary
@@ -232,7 +231,7 @@ logger = setup_logger(f"thread_MAIN.log", log_file)
 for mangaName in data:
     logger.info(f"Downloading Manga {mangaName} from url {data[mangaName][0]} ")
     downloadManga(mangaName=mangaName,url = data[mangaName][0],startPageNo=0,endPageNo=1000,logger = logger)
-    # break
+    break
 
     
 
