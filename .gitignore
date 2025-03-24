@@ -6,3 +6,5 @@
 result.txt
 resultcopy.txt
 *.json
+*/Downloads
+*/__pycache__

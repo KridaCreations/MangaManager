@@ -13,7 +13,8 @@ import os
 import json
 import sys
 import certifi
-
+import asyncio
+import aiohttp
 
 
 
@@ -67,7 +68,7 @@ def images_bin_to_pdf(image_paths, output_folder="pdf_output", output_pdf="outpu
 
 def returnImage(url, filename="downloaded_image.jpg",logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
     try:
-        response = requests.get(url, stream=True, verify=certifi.where())
+        response = requests.get(url, stream=True, verify=certifi.where(),timeout=10)
         response.raise_for_status()  # Raise error for bad responses (4xx and 5xx)
         return response.content
     except requests.exceptions.RequestException as e:
@@ -95,9 +96,9 @@ def scrapSingleChapter(pageUrl,folderName = "",logger=setup_logger(DEFAULT_LOGGE
         for item in imgs:
             imageIndex += 1
             newImageName = imageBaseName + str(imageIndex) + ".jpg"
-            logger.info(f"fetching {imageIndex}/{totalImgs} image of link {pageUrl}----------")
-            print(f"fetching {imageIndex}/{totalImgs} image of link {pageUrl}----------")
             if("http" in item["src"]):
+                logger.info(f"fetching {imageIndex}/{totalImgs} image of link {pageUrl}----------")
+                print(f"fetching {imageIndex}/{totalImgs} image of link {pageUrl}----------")
                 res = returnImage(item["src"],newImageName,logger=logger)
                 if(res):
                     logger.info(f"image {imageIndex}/{totalImgs} image of link {pageUrl} returned")
@@ -189,15 +190,15 @@ def scrapChapters(_startIndex,_endIndex,chapterslink,folderName=""):
 
 
 
-def downloadManga(mangaName,url,startPageNo=-1,endPageNo = -1,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE),threadCount = 4):
-    logger.info(f"chapters from {startPageNo} to {endPageNo} will be downloaded")
-    chaptersLinksArray = fetchChaptersLink(url,startPageNo,endPageNo,logger)
+def downloadManga(mangaName,url,startChapterNo=-1,endChapterNo = -1,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE),threadCount = 4):
+    logger.info(f"chapters from {startChapterNo} to {endChapterNo} will be downloaded")
+    chaptersLinksArray = fetchChaptersLink(url,startChapterNo,endChapterNo,logger)
     linksCount = len(chaptersLinksArray)
     threads = []
-    start = 0
     print(f"{linksCount} chapters found")
     logger.info(f"{linksCount} chapters found")
-    gap = 50
+    # gap = 50
+    start = 0
     gap = int((linksCount/threadCount))+1
     while(start < (linksCount)):
         end = min(start + gap,linksCount-1)
@@ -218,8 +219,9 @@ def countChapters(url):
     return len(fetchChaptersLink(url))
     
 
+
     
-# # Read JSON file and convert it to a dictionary
+# Read JSON file and convert it to a dictionary
 with open("..\docs\mangaLinks1.json", "r") as file:
     data = json.load(file)  # Convert JSON to dict
 
@@ -230,7 +232,7 @@ log_file = f"thread_MAIN.log"
 logger = setup_logger(f"thread_MAIN.log", log_file)
 for mangaName in data:
     logger.info(f"Downloading Manga {mangaName} from url {data[mangaName][0]} ")
-    downloadManga(mangaName=mangaName,url = data[mangaName][0],startPageNo=0,endPageNo=1000,logger = logger)
+    downloadManga(mangaName=mangaName,url = data[mangaName][0],startChapterNo=0,endChapterNo=1000,logger = logger)
     break
 
     
