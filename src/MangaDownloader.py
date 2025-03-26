@@ -14,7 +14,7 @@ import json
 import sys
 import certifi
 import asyncio
-import aiohttp
+# import aiohttp
 
 
 
@@ -68,7 +68,7 @@ def images_bin_to_pdf(image_paths, output_folder="pdf_output", output_pdf="outpu
 
 def returnImage(url, filename="downloaded_image.jpg",logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
     try:
-        response = requests.get(url, stream=True, verify=certifi.where(),timeout=10)
+        response = requests.get(url, stream=True, verify=False,timeout=10)
         response.raise_for_status()  # Raise error for bad responses (4xx and 5xx)
         return response.content
     except requests.exceptions.RequestException as e:
@@ -85,7 +85,7 @@ def scrapSingleChapter(pageUrl,folderName = "",logger=setup_logger(DEFAULT_LOGGE
         }
 
 
-        response = requests.get(pageUrl,verify=certifi.where(),proxies=proxy)
+        response = requests.get(pageUrl,verify=False,proxies=proxy)
         soup = BeautifulSoup(response.text, "html.parser")
 
         imgs = soup.find_all('img')
@@ -132,7 +132,7 @@ def fetchChapterData(url,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
 def fetchChaptersLink(pageUrl,startPageNo = 0,endPageNo = -1,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
     startPageNo = max(0,startPageNo)
     print("here -----------------")
-    response = requests.get(pageUrl,verify=certifi.where())
+    response = requests.get(pageUrl,verify=False)
     print("here -----------------")
     soup = BeautifulSoup(response.text, "html.parser")
     maxChilds = 0
@@ -156,7 +156,7 @@ def fetchChaptersLink(pageUrl,startPageNo = 0,endPageNo = -1,logger=setup_logger
                     links.append([chapterLink,str(chapterNo)])
                     logger.info(f"selected chapter with chapter name {chapterName} and chapterNo {float(chapterNo)}")
         except:
-            pass
+            print("error when fetching chapter data")
     links.reverse()
     return links
 
