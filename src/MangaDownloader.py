@@ -14,7 +14,7 @@ import json
 import sys
 import certifi
 import asyncio
-import aiohttp
+# import aiohttp
 
 
 
@@ -50,7 +50,12 @@ def replace_numbers(text, replacement=0):
 def images_bin_to_pdf(image_paths, output_folder="pdf_output", output_pdf="output.pdf",logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
     try:
         # Open the first image and convert it to RGB (PDF doesn't support RGBA)
+
         images = [Image.open(io.BytesIO(img)).convert("RGB") for img in image_paths]
+        
+        # for image in images:
+        #     new_size = (image.width//2,image.height //2)
+        #     image = image.resize(new_size,Image.Resampling.LANCZOS)
 
         # Create full path for the output PDF
         output_folder = os.path.join("Downloads",output_folder)
@@ -69,7 +74,7 @@ def images_bin_to_pdf(image_paths, output_folder="pdf_output", output_pdf="outpu
 
 def returnImage(url, filename="downloaded_image.jpg",logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
     try:
-        response = requests.get(url, stream=True, verify=certifi.where(),timeout=10)
+        response = requests.get(url, stream=True, verify=False,timeout=10)
         response.raise_for_status()  # Raise error for bad responses (4xx and 5xx)
 
         if "image" not in response.headers.get("Content-Type", ""):
@@ -78,6 +83,10 @@ def returnImage(url, filename="downloaded_image.jpg",logger=setup_logger(DEFAULT
             # img = Image.open(BytesIO(response.content))
             # img.show()
             return response.content
+
+        # with open(filename, "wb") as file:
+        #     file.write(response.content)
+        return response.content
     except requests.exceptions.RequestException as e:
         logger.error(f"Error downloading image: {e}")
         print(f"Error downloading image: {e}")
@@ -92,7 +101,7 @@ def scrapSingleChapter(pageUrl,folderName = "",logger=setup_logger(DEFAULT_LOGGE
         }
 
 
-        response = requests.get(pageUrl,verify=certifi.where(),proxies=proxy)
+        response = requests.get(pageUrl,verify=False,proxies=proxy)
         soup = BeautifulSoup(response.text, "html.parser")
 
         imgs = soup.find_all('img')
@@ -105,7 +114,7 @@ def scrapSingleChapter(pageUrl,folderName = "",logger=setup_logger(DEFAULT_LOGGE
             newImageName = imageBaseName + str(imageIndex) + ".jpg"
             # if("http" in item["src"]):
                 # print(item[:4])
-            if(item["src"][:4] == "http"):
+            if(item["src"].startswith("http")):
                 logger.info(f"fetching {imageIndex}/{totalImgs} image of link {pageUrl}----------")
                 print(f"fetching {imageIndex}/{totalImgs} image of link {pageUrl}----------")
                 res = returnImage(item["src"],newImageName,logger=logger)
@@ -178,6 +187,7 @@ def fetchChaptersLink2(pageUrl,startPageNo = 0,endPageNo = -1,logger=setup_logge
     pass
 
 
+
 def fetchChaptersLink(pageUrl,startPageNo = 0,endPageNo = -1,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
     try:
         startPageNo = max(0,startPageNo)
@@ -241,6 +251,88 @@ def fetchChaptersLink(pageUrl,startPageNo = 0,endPageNo = -1,logger=setup_logger
         logger.error(f"error fetching chapter links {e}")
         return False
 
+# def fetchChaptersLink(pageUrl,startPageNo = 0,endPageNo = -1,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
+#     startPageNo = max(0,startPageNo)
+#     print("here -----------------")
+#     response = requests.get(pageUrl,verify=False)
+#     print("here -----------------")
+#     print(response.text)
+#     soup = BeautifulSoup(response.text, "html.parser")
+#     maxChilds = 0
+#     listUl = []
+#     uls = soup.find_all("ul")
+#     for ul in uls:
+#         # print(ul)
+#         if(maxChilds < len(list(ul.children))):
+#             maxChilds = len(list(ul.children))
+#             print(len(list(ul.children)))
+#             listUl = ul
+
+#     # print(f{{}})
+#     links = []
+#     # print(list(listUl.children))
+#     for child in listUl.children:
+#         try:
+#             # print("child     ",child)
+#             if((child != None) and(child.find_all('a') != None)):# and (len(list(child.children)) == 1)):
+#                 # print("looking for link")
+#                 linktag = child.find_all('a')[0]
+#                 chapterLink = linktag['href']
+#                 try:
+#                     [chapterNo,chapterName] = fetchChapterData(url = chapterLink,logger = logger) 
+#                     print(f"chapter name {chapterNo}")
+#                     if((float(startPageNo) <= float(chapterNo)) 
+#                     and ((float(chapterNo) <= (float(endPageNo) + 1.0)) or (endPageNo == -1))):
+#                         links.append([chapterLink,str(chapterNo)])
+#                         logger.info(f"selected chapter with chapter name {chapterName} and chapterNo {float(chapterNo)}")
+#                         # print("chapter link ",chapterLink)
+#                 except:
+#                     print("wrong link ")
+
+
+#         except:
+#             print("error when fetching chapter data")
+#             logger.error("error when fetching chapter data")
+#     links.reverse()
+#     return links
+
+def fetchChaptersLink2(pageUrl,startPageNo = 0,endPageNo = -1,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
+    startPageNo = max(0,startPageNo)
+    response = requests.get(pageUrl,verify=False)
+    print(response.text)
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    rawlinks = soup.find_all('a')
+
+    cleanlinks = []
+    for link in rawlinks:
+        linkText = link.text.lower()
+        if "chapter" in linkText:
+            if linkText not in cleanlinks:
+                cleanlinks.append(link['href'])
+                print(link['href'])
+
+    result = []
+    for link in cleanlinks:
+        try:
+            [chapterNo,chapterName] = fetchChapterData(url = link,logger = logger) 
+            print(f"chapter name {chapterNo}")
+            if((float(startPageNo) <= float(chapterNo)) 
+            and ((float(chapterNo) <= (float(endPageNo) + 1.0)) or (endPageNo == -1))):
+                result.append([link,str(chapterNo)])
+                logger.info(f"selected chapter with chapter name {chapterName} and chapterNo {float(chapterNo)}")
+                # print("chapter link ",chapterLink)
+
+
+
+        except:
+            print("error when fetching chapter data")
+            logger.error("error when fetching chapter data")
+
+    return result
+    pass
+# >>>>>>> 23711a314dd50de5606c399c737d3286d8a79127
+
 
 
 
@@ -274,7 +366,9 @@ def scrapChapters(_startIndex,_endIndex,chapterslink,folderName=""):
 
 def downloadManga(mangaName,url,startChapterNo=-1,endChapterNo = -1,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE),threadCount = 4):
     logger.info(f"chapters from {startChapterNo} to {endChapterNo} will be downloaded")
-    chaptersLinksArray = fetchChaptersLink(url,startChapterNo,endChapterNo,logger)
+    chaptersLinksArray = fetchChaptersLink2(url,startChapterNo,endChapterNo,logger)
+    print("final links")
+    # print(chaptersLinksArray)
     linksCount = len(chaptersLinksArray)
     threads = []
     print(f"{linksCount} chapters found")
