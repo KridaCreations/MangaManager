@@ -2,7 +2,7 @@
 
 
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from PIL import Image
 import re
 import io
@@ -63,14 +63,21 @@ def images_bin_to_pdf(image_paths, output_folder="pdf_output", output_pdf="outpu
         print(f"PDF created successfully: {output_pdf_path}")
     except Exception as e:
         # pass
-        print(f"Error: {e}")
+        print(f"Error: {e} ")
+        logger.info(f"error while creatign output pdf {output_pdf} the error is {e}")
 
 
 def returnImage(url, filename="downloaded_image.jpg",logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
     try:
         response = requests.get(url, stream=True, verify=certifi.where(),timeout=10)
         response.raise_for_status()  # Raise error for bad responses (4xx and 5xx)
-        return response.content
+
+        if "image" not in response.headers.get("Content-Type", ""):
+            print("Error: Response is not an image!")
+        else:
+            # img = Image.open(BytesIO(response.content))
+            # img.show()
+            return response.content
     except requests.exceptions.RequestException as e:
         logger.error(f"Error downloading image: {e}")
         print(f"Error downloading image: {e}")
@@ -96,7 +103,9 @@ def scrapSingleChapter(pageUrl,folderName = "",logger=setup_logger(DEFAULT_LOGGE
         for item in imgs:
             imageIndex += 1
             newImageName = imageBaseName + str(imageIndex) + ".jpg"
-            if("http" in item["src"]):
+            # if("http" in item["src"]):
+                # print(item[:4])
+            if(item["src"][:4] == "http"):
                 logger.info(f"fetching {imageIndex}/{totalImgs} image of link {pageUrl}----------")
                 print(f"fetching {imageIndex}/{totalImgs} image of link {pageUrl}----------")
                 res = returnImage(item["src"],newImageName,logger=logger)
@@ -128,37 +137,109 @@ def fetchChapterData(url,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
     
     return [chapterno,chaptername]
 
+def fetchChaptersLink2(pageUrl,startPageNo = 0,endPageNo = -1,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
+    startPageNo = max(0,startPageNo)
+    headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        # response = requests.get(pageUrl,verify=certifi.where(),proxies=proxy)
+    response = requests.get(pageUrl,verify=certifi.where(),headers=headers)
+    print(response.text)
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    rawlinks = soup.find_all('a')
+
+    cleanlinks = []
+    for link in rawlinks:
+        linkText = link.text.lower()
+        if "chapter" in linkText:
+            if linkText not in cleanlinks:
+                cleanlinks.append(link['href'])
+                print(link['href'])
+
+    result = []
+    for link in cleanlinks:
+        try:
+            [chapterNo,chapterName] = fetchChapterData(url = link,logger = logger) 
+            print(f"chapter name {chapterNo}")
+            if((float(startPageNo) <= float(chapterNo)) 
+            and ((float(chapterNo) <= (float(endPageNo) + 1.0)) or (endPageNo == -1))):
+                result.append([link,str(chapterNo)])
+                logger.info(f"selected chapter with chapter name {chapterName} and chapterNo {float(chapterNo)}")
+                # print("chapter link ",chapterLink)
+
+
+
+        except:
+            print("error when fetching chapter data")
+            logger.error("error when fetching chapter data")
+
+    return result
+    pass
+
 
 def fetchChaptersLink(pageUrl,startPageNo = 0,endPageNo = -1,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
-    startPageNo = max(0,startPageNo)
-    print("here -----------------")
-    response = requests.get(pageUrl,verify=certifi.where())
-    print("here -----------------")
-    soup = BeautifulSoup(response.text, "html.parser")
-    maxChilds = 0
-    listUl = []
-    uls = soup.find_all("ul")
-    for ul in uls:
-        if(maxChilds < len(list(ul.children))):
-            maxChilds = len(list(ul.children))
-            listUl = ul
+    try:
+        startPageNo = max(0,startPageNo)
+        print("here -----------------")
+        print("page url ",pageUrl)
 
-    
-    links = []
-    for child in listUl.children:
-        try:
-            if((child.find('a') != None) and (len(list(child.children)) == 1)):
-                linktag = child.find('a')
-                chapterLink = linktag['href']
-                [chapterNo,chapterName] = fetchChapterData(url = chapterLink,logger = logger) 
-                if((float(startPageNo) <= float(chapterNo)) 
-                   and ((float(chapterNo) <= (float(endPageNo) + 1.0)) or (endPageNo == -1))):
-                    links.append([chapterLink,str(chapterNo)])
-                    logger.info(f"selected chapter with chapter name {chapterName} and chapterNo {float(chapterNo)}")
-        except:
-            pass
-    links.reverse()
-    return links
+        proxy = {
+            "http": "http://127.0.0.1:8080",
+            "https": "http://127.0.0.1:8080",
+        }
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        # response = requests.get(pageUrl,verify=certifi.where(),proxies=proxy)
+        response = requests.get(pageUrl,verify=certifi.where(),headers=headers)
+        # print(response.text)
+        response.raise_for_status()
+        print("here -----------------")
+        soup = BeautifulSoup(response.text, "html.parser")
+        
+        maxChilds = 0
+        listUl = []
+        uls = soup.find_all("ul")
+        for ul in uls:
+            if(maxChilds < len(list(ul.children))):
+                maxChilds = len(list(ul.children))
+                listUl = ul
+                
+
+        
+        print(listUl.contents)
+        links = []
+        for child in listUl.children:
+            try:
+                # print("ter--------------------------------")
+                # print(str(child))
+                # print(type(child))
+                # print(isinstance(child,Tag))
+                # print(child.find('a') != None)
+                # print(len(list(child.children)) == 1)
+                # print("childcount ",len(list(child.children)))
+                # temp = list(child.children)
+                # for _ in temp:
+                #     print(str(_))
+                if(isinstance(child,Tag) and (child.find('a') != None) ):
+                    linktag = child.find('a')
+                    chapterLink = linktag['href']
+                    print("chapter link  ",chapterLink)
+                    [chapterNo,chapterName] = fetchChapterData(url = chapterLink,logger = logger) 
+                    # print(chapterNo)
+                    if((float(startPageNo) <= float(chapterNo)) 
+                    and ((float(chapterNo) <= (float(endPageNo) + 1.0)) or (endPageNo == -1))):
+                        links.append([chapterLink,str(chapterNo)])
+                        logger.info(f"selected chapter with chapter name {chapterName} and chapterNo {float(chapterNo)}")
+            except:
+                pass
+        links.reverse()
+        return links
+    except Exception as e:
+        logger.error(f"error fetching chapter links {e}")
+        return False
 
 
 
@@ -185,6 +266,7 @@ def scrapChapters(_startIndex,_endIndex,chapterslink,folderName=""):
             pass
         pass
     except KeyboardInterrupt:
+        # return False
         logger.error("\nCtrl+C detected! Exiting gracefully.")
         print("\nCtrl+C detected! Exiting gracefully.")
 
@@ -232,7 +314,7 @@ log_file = f"thread_MAIN.log"
 logger = setup_logger(f"thread_MAIN.log", log_file)
 for mangaName in data:
     logger.info(f"Downloading Manga {mangaName} from url {data[mangaName][0]} ")
-    downloadManga(mangaName=mangaName,url = data[mangaName][0],startChapterNo=0,endChapterNo=1000,logger = logger)
+    downloadManga(mangaName=mangaName,url = data[mangaName][0],startChapterNo=0,endChapterNo=1000,logger = logger,threadCount=8)
     break
 
     
