@@ -50,7 +50,12 @@ def replace_numbers(text, replacement=0):
 def images_bin_to_pdf(image_paths, output_folder="pdf_output", output_pdf="output.pdf",logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
     try:
         # Open the first image and convert it to RGB (PDF doesn't support RGBA)
+
         images = [Image.open(io.BytesIO(img)).convert("RGB") for img in image_paths]
+        
+        # for image in images:
+        #     new_size = (image.width//2,image.height //2)
+        #     image = image.resize(new_size,Image.Resampling.LANCZOS)
 
         # Create full path for the output PDF
         output_folder = os.path.join("Downloads",output_folder)
@@ -70,6 +75,8 @@ def returnImage(url, filename="downloaded_image.jpg",logger=setup_logger(DEFAULT
     try:
         response = requests.get(url, stream=True, verify=False,timeout=10)
         response.raise_for_status()  # Raise error for bad responses (4xx and 5xx)
+        # with open(filename, "wb") as file:
+        #     file.write(response.content)
         return response.content
     except requests.exceptions.RequestException as e:
         logger.error(f"Error downloading image: {e}")
@@ -96,7 +103,8 @@ def scrapSingleChapter(pageUrl,folderName = "",logger=setup_logger(DEFAULT_LOGGE
         for item in imgs:
             imageIndex += 1
             newImageName = imageBaseName + str(imageIndex) + ".jpg"
-            if("http" in item["src"]):
+            # if("http" in item["src"]):
+            if(item["src"].startswith("http")):
                 logger.info(f"fetching {imageIndex}/{totalImgs} image of link {pageUrl}----------")
                 print(f"fetching {imageIndex}/{totalImgs} image of link {pageUrl}----------")
                 res = returnImage(item["src"],newImageName,logger=logger)
@@ -129,36 +137,86 @@ def fetchChapterData(url,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
     return [chapterno,chaptername]
 
 
-def fetchChaptersLink(pageUrl,startPageNo = 0,endPageNo = -1,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
-    startPageNo = max(0,startPageNo)
-    print("here -----------------")
-    response = requests.get(pageUrl,verify=False)
-    print("here -----------------")
-    soup = BeautifulSoup(response.text, "html.parser")
-    maxChilds = 0
-    listUl = []
-    uls = soup.find_all("ul")
-    for ul in uls:
-        if(maxChilds < len(list(ul.children))):
-            maxChilds = len(list(ul.children))
-            listUl = ul
+# def fetchChaptersLink(pageUrl,startPageNo = 0,endPageNo = -1,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
+#     startPageNo = max(0,startPageNo)
+#     print("here -----------------")
+#     response = requests.get(pageUrl,verify=False)
+#     print("here -----------------")
+#     print(response.text)
+#     soup = BeautifulSoup(response.text, "html.parser")
+#     maxChilds = 0
+#     listUl = []
+#     uls = soup.find_all("ul")
+#     for ul in uls:
+#         # print(ul)
+#         if(maxChilds < len(list(ul.children))):
+#             maxChilds = len(list(ul.children))
+#             print(len(list(ul.children)))
+#             listUl = ul
 
-    
-    links = []
-    for child in listUl.children:
+#     # print(f{{}})
+#     links = []
+#     # print(list(listUl.children))
+#     for child in listUl.children:
+#         try:
+#             # print("child     ",child)
+#             if((child != None) and(child.find_all('a') != None)):# and (len(list(child.children)) == 1)):
+#                 # print("looking for link")
+#                 linktag = child.find_all('a')[0]
+#                 chapterLink = linktag['href']
+#                 try:
+#                     [chapterNo,chapterName] = fetchChapterData(url = chapterLink,logger = logger) 
+#                     print(f"chapter name {chapterNo}")
+#                     if((float(startPageNo) <= float(chapterNo)) 
+#                     and ((float(chapterNo) <= (float(endPageNo) + 1.0)) or (endPageNo == -1))):
+#                         links.append([chapterLink,str(chapterNo)])
+#                         logger.info(f"selected chapter with chapter name {chapterName} and chapterNo {float(chapterNo)}")
+#                         # print("chapter link ",chapterLink)
+#                 except:
+#                     print("wrong link ")
+
+
+#         except:
+#             print("error when fetching chapter data")
+#             logger.error("error when fetching chapter data")
+#     links.reverse()
+#     return links
+
+def fetchChaptersLink2(pageUrl,startPageNo = 0,endPageNo = -1,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE)):
+    startPageNo = max(0,startPageNo)
+    response = requests.get(pageUrl,verify=False)
+    print(response.text)
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    rawlinks = soup.find_all('a')
+
+    cleanlinks = []
+    for link in rawlinks:
+        linkText = link.text.lower()
+        if "chapter" in linkText:
+            if linkText not in cleanlinks:
+                cleanlinks.append(link['href'])
+                print(link['href'])
+
+    result = []
+    for link in cleanlinks:
         try:
-            if((child.find('a') != None) and (len(list(child.children)) == 1)):
-                linktag = child.find('a')
-                chapterLink = linktag['href']
-                [chapterNo,chapterName] = fetchChapterData(url = chapterLink,logger = logger) 
-                if((float(startPageNo) <= float(chapterNo)) 
-                   and ((float(chapterNo) <= (float(endPageNo) + 1.0)) or (endPageNo == -1))):
-                    links.append([chapterLink,str(chapterNo)])
-                    logger.info(f"selected chapter with chapter name {chapterName} and chapterNo {float(chapterNo)}")
+            [chapterNo,chapterName] = fetchChapterData(url = link,logger = logger) 
+            print(f"chapter name {chapterNo}")
+            if((float(startPageNo) <= float(chapterNo)) 
+            and ((float(chapterNo) <= (float(endPageNo) + 1.0)) or (endPageNo == -1))):
+                result.append([link,str(chapterNo)])
+                logger.info(f"selected chapter with chapter name {chapterName} and chapterNo {float(chapterNo)}")
+                # print("chapter link ",chapterLink)
+
+
+
         except:
             print("error when fetching chapter data")
-    links.reverse()
-    return links
+            logger.error("error when fetching chapter data")
+
+    return result
+    pass
 
 
 
@@ -192,7 +250,9 @@ def scrapChapters(_startIndex,_endIndex,chapterslink,folderName=""):
 
 def downloadManga(mangaName,url,startChapterNo=-1,endChapterNo = -1,logger=setup_logger(DEFAULT_LOGGER,DEFAUL_LOG_FILE),threadCount = 4):
     logger.info(f"chapters from {startChapterNo} to {endChapterNo} will be downloaded")
-    chaptersLinksArray = fetchChaptersLink(url,startChapterNo,endChapterNo,logger)
+    chaptersLinksArray = fetchChaptersLink2(url,startChapterNo,endChapterNo,logger)
+    print("final links")
+    # print(chaptersLinksArray)
     linksCount = len(chaptersLinksArray)
     threads = []
     print(f"{linksCount} chapters found")
