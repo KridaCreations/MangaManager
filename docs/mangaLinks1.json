@@ -1,12 +1,22 @@
 {
+<<<<<<< HEAD
     "Mashle":["https://w1.mashlemanga.com/all-chapters/","https://mashle-manga.online/","https://www.mashlemanga.net/"],
     "SoloLevelling":["https://w42.readlevelingsolomanga.com/","https://manhwa.leveling-solo.org/"],
     "AttackOfTitans":["https://w26.read-attackontitan-manga.com/"],
+=======
+    "Naruto":["https://narutocolored.com/"],
+>>>>>>> c4f2cf034a9cad382fa8ab75a4f645776a44b21f
     "JujutsuKaisen":["https://thejujutsukaisenmanga.online/","https://thejujutsukaisenread.com/"],
+    "SoloLevelling":["https://manhwa.leveling-solo.org/","https://w42.readlevelingsolomanga.com/"],
     "OnePunchMan":["https://readonepunch-man.com/","https://onepunchmanmangaa.com/"],
     "SpyXFamily":["https://w33.spyxmanga.com/"],
     "DemonSlayer":["https://demonslayerfree.online/","https://w3.demon-slayer.online/eng/"],
+<<<<<<< HEAD
     "SeoulStationDruid":["https://mangarockteam.com/manga/seoul-station-druid/"],
     "Naruto":["https://narutocolored.com/"],
     "Onepiece":["https://w38.onepiece-manga-online.net/","https://www.1piecescans.com/"]
+=======
+    "Onepiece":["https://w38.onepiece-manga-online.net/","https://www.1piecescans.com/"],
+    "AttackOfTitans":["https://w26.read-attackontitan-manga.com/"]
+>>>>>>> c4f2cf034a9cad382fa8ab75a4f645776a44b21f
 }
